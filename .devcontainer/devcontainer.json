@@ -18,7 +18,7 @@
   },
 
   // Use 'postCreateCommand' to install packages
-  "postCreateCommand": "pip install --upgrade pip && pip install -r requirements.txt",
+  "postCreateCommand": "pip install --upgrade pip",
 
   // Forward a common port for web servers (e.g., Flask, Django)
   "forwardPorts": [8000]
