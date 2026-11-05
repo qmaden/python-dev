@@ -110,5 +110,7 @@ def tisztitasi_jelentes(df: pd.DataFrame) -> str:
 if __name__ == "__main__":
     import sys
 
-    adat = beolvas(sys.argv[1] if len(sys.argv) > 1 else Path(__file__).parent / "data" / "hatos.csv")
+    from ..kozos import ADATOK
+
+    adat = beolvas(sys.argv[1] if len(sys.argv) > 1 else ADATOK / "hatos.csv")
     print(tisztitasi_jelentes(adat))

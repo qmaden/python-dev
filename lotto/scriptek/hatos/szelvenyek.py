@@ -20,8 +20,8 @@ import numpy as np
 import pandas as pd
 from scipy import stats
 
-from elemzes import K, N_SZAM, osszes_kombinacio
-from tisztitas import SZAM_OSZLOPOK
+from .elemzes import K, N_SZAM, osszes_kombinacio
+from .tisztitas import SZAM_OSZLOPOK
 
 
 # ---------------------------------------------------------------------------
@@ -62,6 +62,44 @@ def mintazat_hibak(sz: tuple[int, ...], multbeli: set[tuple[int, ...]], friss: n
 # ---------------------------------------------------------------------------
 # Szelvények kiválasztása
 # ---------------------------------------------------------------------------
+def _kigyo_kiosztas(szamok: list[int], n_szelveny: int) -> list[list[int]]:
+    """"Kígyó-draft": 1,2,3,4,4,3,2,1,1,2,... sorrendben osztjuk ki a népszerűség
+    szerint rendezett számokat, így a szelvények kiegyensúlyozottak lesznek."""
+    sz: list[list[int]] = [[] for _ in range(n_szelveny)]
+    for i, x in enumerate(szamok):
+        kor, k = divmod(i, n_szelveny)
+        sz[k if kor % 2 == 0 else n_szelveny - 1 - k].append(x)
+    return sz
+
+
+def _javitas(sz: list[list[int]], hibak, nep: dict, max_lepes: int = 100) -> list[list[int]] | None:
+    """Determinisztikus helyi keresés: mindig a legjobb cserét hajtjuk végre két
+    szelvény között, amíg minden szelvény át nem megy a mintázat-szűrőn."""
+
+    def koltseg(x):
+        pont = [sum(nep[v] for v in s) for s in x]
+        return sum(len(hibak(tuple(sorted(s)))) for s in x), max(pont) - min(pont)
+
+    akt, akt_k = [list(s) for s in sz], koltseg(sz)
+    for _ in range(max_lepes):
+        if akt_k[0] == 0:
+            return akt
+        legjobb, legjobb_k = None, akt_k
+        for a in range(len(akt)):
+            for b in range(a + 1, len(akt)):
+                for i in range(len(akt[a])):
+                    for j in range(len(akt[b])):
+                        uj = [list(s) for s in akt]
+                        uj[a][i], uj[b][j] = uj[b][j], uj[a][i]
+                        k = koltseg(uj)
+                        if k < legjobb_k:
+                            legjobb, legjobb_k = uj, k
+        if legjobb is None:
+            return None
+        akt, akt_k = legjobb, legjobb_k
+    return akt if akt_k[0] == 0 else None
+
+
 def szelvenyek_osszeallitasa(
     df: pd.DataFrame,
     nepszeruseg: pd.Series,
@@ -69,31 +107,43 @@ def szelvenyek_osszeallitasa(
     n_proba: int = 200_000,
     seed: int = 2026,
 ) -> list[tuple[int, ...]]:
-    """24 legkevésbé népszerű szám szétosztása 4 egymást nem fedő szelvényre úgy,
-    hogy mindegyik átmenjen a mintázat-szűrőn, és a szelvények népszerűsége
-    kiegyensúlyozott legyen. Ha nincs érvényes felosztás, a következő
-    legkevésbé népszerű számmal cserél."""
+    """A 24 legkevésbé népszerű szám szétosztása 4 egymást nem fedő szelvényre.
+
+    1. kígyó-draft a népszerűségi sorrend szerint (kiegyensúlyozott szelvények);
+    2. ha valamelyik szelvény elbukik a mintázat-szűrőn, determinisztikus cserékkel javítjuk.
+    Így egy-egy új húzás csak akkor változtat a szelvényeken, ha a számok sorrendje változik.
+    Ha a 24 számból nem rakható ki érvényes készlet, véletlen kereséssel bevonjuk a
+    következő legkevésbé népszerű számokat is."""
     multbeli = {tuple(r) for r in df[SZAM_OSZLOPOK].to_numpy()}
     friss = df[SZAM_OSZLOPOK].to_numpy()[-104:]
-    sorrend = nepszeruseg.sort_values().index.to_list()
-    rng = np.random.default_rng(seed)
+    sorrend = [int(x) for x in nepszeruseg.sort_values().index]
     nep = nepszeruseg.to_dict()
 
-    for extra in range(0, N_SZAM - n_szelveny * K + 1):
-        # a "határon" lévő számok közül cserélgetünk, ha kell
+    def hibak(s):
+        return mintazat_hibak(s, multbeli, friss)
+
+    def rendez(sz):
+        return sorted((tuple(sorted(s)) for s in sz), key=lambda s: sum(nep[x] for x in s))
+
+    javitott = _javitas(_kigyo_kiosztas(sorrend[: n_szelveny * K], n_szelveny), hibak, nep)
+    if javitott is not None:
+        return rendez(javitott)
+
+    rng = np.random.default_rng(seed)
+    for extra in range(1, N_SZAM - n_szelveny * K + 1):
         jeloltek = sorrend[: n_szelveny * K + extra]
         legjobb, legjobb_ertek = None, np.inf
         for _ in range(n_proba // (extra + 1)):
-            valasztott = rng.choice(jeloltek, n_szelveny * K, replace=False) if extra else rng.permutation(jeloltek)
+            valasztott = rng.choice(jeloltek, n_szelveny * K, replace=False)
             sz = [tuple(sorted(int(x) for x in valasztott[i * K:(i + 1) * K])) for i in range(n_szelveny)]
-            if any(mintazat_hibak(s, multbeli, friss) for s in sz):
+            if any(hibak(s) for s in sz):
                 continue
             pont = [sum(nep[x] for x in s) for s in sz]
             ertek = sum(pont) + 0.5 * (max(pont) - min(pont))  # alacsony + kiegyensúlyozott
             if ertek < legjobb_ertek:
                 legjobb, legjobb_ertek = sz, ertek
         if legjobb is not None:
-            return sorted(legjobb, key=lambda s: sum(nep[x] for x in s))
+            return rendez(legjobb)
     raise RuntimeError("Nem található érvényes szelvénykészlet")
 
 

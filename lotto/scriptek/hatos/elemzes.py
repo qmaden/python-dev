@@ -17,7 +17,9 @@ import numpy as np
 import pandas as pd
 from scipy import stats
 
-from tisztitas import SZAM_OSZLOPOK
+from ..kozos import khi2_illeszkedes as _khi2_illeszkedes
+from ..kozos import veletlen_reszhalmazok
+from .tisztitas import SZAM_OSZLOPOK
 
 N_SZAM, K = 45, 6
 P_SZAM = K / N_SZAM  # egy adott szám esélye egy húzáson: 6/45 = 13,3%
@@ -42,26 +44,9 @@ def osszes_kombinacio() -> np.ndarray:
 
 
 def veletlen_huzasok(n: int, rng: np.random.Generator) -> np.ndarray:
-    return np.sort(rng.random((n, N_SZAM)).argsort(axis=1)[:, :K] + 1, axis=1)
+    return veletlen_reszhalmazok(n, N_SZAM, K, rng)
 
 
-def _khi2_illeszkedes(megfigyelt: np.ndarray, elmeleti_p: np.ndarray, min_vart: float = 5.0):
-    """Khi-négyzet illeszkedésvizsgálat, a kis várható értékű cellákat összevonva."""
-    n = megfigyelt.sum()
-    vart = elmeleti_p * n
-    o, e, acc_o, acc_e = [], [], 0.0, 0.0
-    for oi, ei in zip(megfigyelt, vart):
-        acc_o += oi
-        acc_e += ei
-        if acc_e >= min_vart:
-            o.append(acc_o), e.append(acc_e)
-            acc_o = acc_e = 0.0
-    if acc_e > 0:
-        o[-1] += acc_o
-        e[-1] += acc_e
-    o, e = np.array(o), np.array(e)
-    e *= o.sum() / e.sum()
-    return stats.chisquare(o, e)
 
 
 # ---------------------------------------------------------------------------
