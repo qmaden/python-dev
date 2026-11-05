@@ -24,7 +24,7 @@ KIMENET = EREDMENYEK / "luxor"
 SZELVENY_AR = 300  # Ft / alapjáték
 
 
-def abra(df: pd.DataFrame, becsles: pd.DataFrame, fajl: Path) -> None:
+def abra(df: pd.DataFrame, becsles: pd.DataFrame, f_p: float, fajl: Path) -> None:
     import matplotlib
 
     matplotlib.use("Agg")
@@ -66,8 +66,8 @@ def abra(df: pd.DataFrame, becsles: pd.DataFrame, fajl: Path) -> None:
     ax2.set_xlim(-0.7, len(becsles) - 0.3)
     ax2.set_ylabel("%")
     abra_cim(ax2, "Népszerűek-e egyes számok? Hatás a kép-nyertesek számára (U, X, O oszlop, 2015–2026)",
-             "+% = ha kihúzzák, ennyivel több a kép-nyertes. Szürke sáv = puszta zajtól várható 95%-os tartomány "
-             "(45 számból 2–3 kilógó a véletlentől is várható)")
+             "+% = ha kihúzzák, ennyivel több a kép-nyertes. Szürke sáv = puszta zajtól várható 95%-os tartomány; "
+             f"45 számból néhány kilógó a véletlentől is várható (együttes F-próba: p = {f_p:.2f})")
     for ax in (ax1, ax2):
         abra_stilus(ax)
     fig.tight_layout(h_pad=2.5)
@@ -193,5 +193,5 @@ def main(csv: Path = ADATOK / "luxor.csv", nyeremenyek: Path = ADATOK / "luxor_n
        f"Luxor {ezres(nyd.ft_luxor.mean())} Ft. A 4 szelvény ára {4 * SZELVENY_AR} Ft / hét.")
 
     (KIMENET / "jelentes.md").write_text("\n".join(md) + "\n", encoding="utf-8")
-    abra(df, becsles, KIMENET / "abra.png")
+    abra(df, becsles, tk["p"], KIMENET / "abra.png")
     print(f"\nKimenet: {KIMENET}/")

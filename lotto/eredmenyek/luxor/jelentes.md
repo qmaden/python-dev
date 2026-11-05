@@ -10,8 +10,8 @@ Hiányos számsor: 2004/32 (39 szám a 43 helyett)
 Kihúzott golyók száma a luxorig: 36–51 (átlag 43.9)
 Jackpot-nyerések: 99
 Szabálytól eltérő jackpot-határ: 2016/51, 2017/35, 2018/2, 2018/15
-Nyereménytábla ismert: 410 húzás (2018-tól)
-CSV és nyereménytábla határszámai egyeznek: 410 hét
+Nyereménytábla ismert: 611 húzás (2015/5-tól), az oldalon hiányzik: 2016/51, 2016/52, 2022/52
+CSV és nyereménytábla határszámai egyeznek: 611 hét
 ```
 
 ## 2. A tábla szerkezete az adatokból
@@ -51,10 +51,10 @@ A sorsolás minden héten legalább 36 golyóig tart, ez a rész tehát függetl
 - **A(z) első kép lezáró golyója** (oszlopon belül egyenletes-e): p = 0.69
 - **A(z) első keret lezáró golyója** (oszlopon belül egyenletes-e): p = 0.10
 - **A(z) luxor lezáró golyója** (oszlopon belül egyenletes-e): p = 0.23
-- **Kép-nyertesek száma** (410 hét, 2015-től): számít-e, hogy az U, X, O oszlopon belül *melyik* számok jöttek ki? F-próba p = 0.24
-- **Keret-nyertesek száma**: ugyanez mind az 5 oszlopra → p = 0.77
+- **Kép-nyertesek száma** (611 hét, 2015-től): számít-e, hogy az U, X, O oszlopon belül *melyik* számok jöttek ki? F-próba p = 0.12
+- **Keret-nyertesek száma**: ugyanez mind az 5 oszlopra → p = 0.76
 
-A számonkénti becslések szórása 1.6%, a puszta zajtól várható 1.5% (egy ±4%-os népszerűségi különbséget már ki tudnánk mutatni).
+A számonkénti becslések szórása 1.4%, a puszta zajtól várható 1.2% (egy ±3%-os népszerűségi különbséget már ki tudnánk mutatni).
 
 **Következtetés:** a Luxornál – a Hatoslottóval ellentétben – nem mutatható ki, hogy a játékosok egyes számokat érezhetően többen játszanának (valószínűleg sokan gépi tippel játszanak, és 20 szám mellett a kedvenc számok hatása elvész). Így a számválasztás **sem az esélyt, sem a nyeremény nagyságát** nem befolyásolja mérhetően. Ami számít: a 4 szelvény közti **lefedés**.
 
@@ -76,8 +76,8 @@ Ha ezt a 4 szelvényt minden héten megjátszottuk volna (1309 hét, a gép vél
 | kép esélye szelvényenként / hét | **3.63%** | 3.59% | 3.59% |
 | legalább 1 kép a 4-ből / hét | **13.87%** | 13.28% | 10.96% |
 | legalább 1 keret a 4-ből / hét | **0.127%** | 0.110% | 0.086% |
-| átlagos nyeremény szelvényenként / hét (2015-től, 300 Ft-os tétre) | **68 Ft** | 67 Ft | 69 Ft |
+| átlagos nyeremény szelvényenként / hét (2015-től, 300 Ft-os tétre) | **58 Ft** | 60 Ft | 61 Ft |
 
 A szelvényenkénti esély és a várható nyeremény bármilyen számválasztásnál ugyanannyi (a különbségek a véletlen ingadozás részei); a lefedés azt növeli, hogy **legalább az egyik** szelvény nyerjen.
 
-Átlagos nyeremények 2015-től (410 hét): kép 1 988 Ft (átl. 12 300 nyertes)  keret 94 922 Ft (átl. 105 nyertes)  első kép 433 634 Ft  Luxor 7 105 218 Ft.
+Átlagos nyeremények 2015-től (611 hét): kép 1 776 Ft (átl. 12 555 nyertes), keret 83 111 Ft (átl. 110 nyertes), első kép 399 693 Ft, Luxor 6 933 157 Ft. A 4 szelvény ára 1200 Ft / hét.

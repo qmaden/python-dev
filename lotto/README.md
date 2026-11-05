@@ -81,8 +81,9 @@ valakinek össze nem jön a Luxor (36–51 golyó).
 **Adattisztítás:** BOM, CRLF, változó hosszú számsorok, 2001–2004/28 a határszámok 0-k
 (hiányzó adat), 2004/32 hiányos számsor (39 szám 43 helyett), 4 szabálytól eltérő
 jackpot-határ (valószínűleg akciós hetek). A CSV-ben nincs nyeremény, ezért a heti
-nyereménytáblákat 2015-től külön letöltjük (`scriptek/letoltes.py`), és a két forrás
-határszámait egymással is ellenőrizzük.
+nyereménytáblákat külön letöltjük (`scriptek/letoltes.py`; 2015/5-től érhetők el, 611 hét,
+3 hétnek nincs oldala), és a két forrás határszámait egymással is ellenőrizzük (mind a 611
+hét egyezik; jackpot-nyerésnél az oldal a határ helyett a tényleges golyószámot mutatja).
 
 **Eredmények:**
 - **A tábla szerkezete az adatokból:** az első képet lezáró golyó mindig az U, X vagy O
@@ -91,8 +92,10 @@ határszámait egymással is ellenőrizzük.
   keret esélyére.
 - A húzás tisztán véletlen (az első 36 golyón, ami minden héten kijön); forró/hideg/
   esedékes stratégiák itt sem működnek.
-- **Népszerűségi hatás itt nem mutatható ki:** sem a húzási sorrendből (befejező szakasz,
-  lezáró golyók), sem a kép- és keret-nyertesek számából. Valószínűleg sokan gépi tippel
+- **Népszerűségi hatás itt nem mutatható ki:** sem a húzási sorrendből (befejező szakasz
+  p = 0,72; lezáró golyók p = 0,69 / 0,10 / 0,23), sem a kép- és keret-nyertesek számából
+  (611 hét, F-próba p = 0,12 és 0,76; egy kb. ±3%-os különbséget már kimutatnánk).
+  Valószínűleg sokan gépi tippel
   játszanak, és 20 szám mellett a kedvenc számok hatása elvész. Ezért a Luxornál a
   számválasztás sem az esélyt, sem a nyeremény nagyságát nem befolyásolja mérhetően.
 - **Ami számít: a lefedés.** A 4 szelvény együtt mind a 75 számot lefedi (oszloponként
@@ -120,7 +123,7 @@ Ha ezt minden héten megjátszottuk volna (1309 hét, a gép véletlen elhelyez�
 ## Fontos
 
 - Egyik módszer sem növeli a főnyeremény esélyét; a lottó várható értéke negatív
-  (a befizetések kb. fele megy vissza nyereményként, a Luxor 300 Ft-os szelvényén a
-  kép+keret+első kép kategóriák átlagosan kb. 70 Ft-ot adnak vissza). Csak annyit
+  (a befizetések kb. fele megy vissza nyereményként; a Luxor 300 Ft-os szelvényére
+  2015 óta átlagosan kb. 60 Ft nyeremény jutott volna hetente, bármilyen számokkal). Csak annyit
   érdemes rá költeni, amennyit szórakozásra szánnál.
 - Ha mindenki ugyanezt a módszert használná, a Hatoslottós előny eltűnne. :)

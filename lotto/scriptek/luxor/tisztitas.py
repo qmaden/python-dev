@@ -17,7 +17,9 @@ Talált problémák:
   * 2004/32: a luxor a 43. golyónál jött, de csak 39 szám szerepel -> hiányos sorozat
   * 4 hétnél a jackpot-határ eltér a "+1 vagy vissza 32-re" szabálytól
     (2016/51, 2017/35, 2018/2, 2018/15) – valószínűleg akciós hetek; csak jelöljük
-  * a nyereménytáblák (darabszám, Ft) csak 2015-től érhetők el, külön fájlban
+  * a nyereménytáblák (darabszám, Ft) csak 2015/5-től érhetők el, külön fájlban;
+    3 hétnek nincs oldala (2016/51, 2016/52, 2022/52); jackpot-nyerésnél az oldal a
+    határszám helyett a tényleges golyószámot mutatja (2015/23, 2015/49, 2016/19)
 """
 
 from __future__ import annotations
@@ -103,7 +105,9 @@ def beolvas(utvonal: str | Path, nyeremenyek: str | Path | None = None) -> pd.Da
             (df["hatar_luxor"] == df["luxor"])
             & (df["hatar_elso_kep"] == df["elso_kep"])
             & (df["hatar_elso_keret"] == df["elso_keret"])
-            & (df["hatar_jackpot"] == df["jackpot_hatar"]),
+            # jackpot-nyerésnél az oldal a határ helyett a tényleges golyószámot írja ki
+            & ((df["hatar_jackpot"] == df["jackpot_hatar"])
+               | ((df["db_jackpot"] > 0) & (df["hatar_jackpot"] == df["luxor"]))),
             np.nan,
         )
     return df
@@ -139,8 +143,11 @@ def tisztitasi_jelentes(df: pd.DataFrame) -> str:
     s.append("Szabálytól eltérő jackpot-határ: "
              + ", ".join(f"{r.ev}/{r.het}" for r in df[df.hatar_szabalytalan].itertuples()))
     if "db_kep" in df:
-        s.append(f"Nyereménytábla ismert: {df.db_kep.notna().sum()} húzás "
-                 f"({int(df[df.db_kep.notna()].ev.min())}-tól)")
+        van = df[df.db_kep.notna()]
+        hianyzik = df[(df.ev >= van.ev.min()) & df.db_kep.isna() & (df.huzas_id > van.huzas_id.min())]
+        s.append(f"Nyereménytábla ismert: {len(van)} húzás ({van.ev.iloc[0]}/{van.het.iloc[0]}-tól)"
+                 + (f", az oldalon hiányzik: {', '.join(f'{r.ev}/{r.het}' for r in hianyzik.itertuples())}"
+                    if len(hianyzik) else ""))
         if "forras_egyezik" in df:
             nem = df[df.forras_egyezik == 0]
             s.append(f"CSV és nyereménytábla határszámai egyeznek: {int((df.forras_egyezik == 1).sum())} hét"
