@@ -17,6 +17,9 @@ Talált problémák, amiket itt kezelünk:
   * 1988–1997 között a nyertesszámok mind 0 -> ez hiányzó adat, nem valódi nulla
   * 1988–1993 hiányos / ritkább húzások (évente 2–29 sor)
   * 2025 szeptemberétől csütörtökön is van húzás, így (év, hét) már nem egyedi kulcs
+  * a nap megnevezése a forrásban utólag változott: a 2004 előtti húzások a korábbi
+    letöltésben "Csütörtök", a mostaniban "Hétfő" címkével szerepelnek (az elemzést nem
+    érinti: a csütörtöki húzásokat csak 2025-től kezeljük külön)
   * év-forduló: a "játékév" (pl. 2022/52. hét) dátuma lehet már a következő naptári év
   * 1998/3. hét: 0 db telitalálat, de "1 Ft" nyeremény -> hibás érték
 """

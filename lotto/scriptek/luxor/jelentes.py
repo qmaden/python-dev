@@ -17,6 +17,7 @@ import pandas as pd
 
 from ..kozos import ADATOK, EREDMENYEK, SZINEK, abra_cim, abra_stilus
 from . import elemzes as e
+from . import megterules as mt
 from . import szelvenyek as s
 from .tisztitas import N_SZAM, beolvas, huzott_matrix, tisztitasi_jelentes
 
@@ -104,6 +105,14 @@ def main(csv: Path = ADATOK / "luxor.csv", nyeremenyek: Path = ADATOK / "luxor_n
     ki("Ezért a kép esélye: ∏_{U,X,O} C(h, 2) / C(4, 2), ahol h = az oszlopban kihúzott számaink száma; "
        "a keret ehhez még azt is megkívánja, hogy az L és R oszlop mind a 4 száma kint legyen.\n")
 
+    heti = mt.heti_tabla(df)
+    ki("**Független ellenőrzés a nyertesek számából** (2015-től): a kép-nyertesekből visszaszámolható, hány "
+       "szelvény volt játékban; ebből a képlet megadja, hány keret-, első kép-, első keret- és luxor-nyertesnek "
+       "kellett lennie.\n")
+    ki(mt.szerkezet_ellenorzes(heti).to_markdown(index=False, floatfmt=".3f"))
+    ki("\nA képlet tehát a tényleges nyertesszámokat néhány százalékon belül visszaadja (az első keretnél és a "
+       "luxornál a kis eltérés abból jön, hogy a sorsolás épp az első ilyen szelvénynél áll meg).\n")
+
     ki("## 3. Véletlenszerűségi tesztek (az első 36 golyón)\n")
     ki("A sorsolás minden héten legalább 36 golyóig tart, ez a rész tehát független attól, "
        "hogy mikor jön ki a Luxor.\n")
@@ -174,14 +183,12 @@ def main(csv: Path = ADATOK / "luxor.csv", nyeremenyek: Path = ADATOK / "luxor_n
         ("kép esélye szelvényenként / hét", "p_kep_szelvenyenkent", 100, "{:.2f}%"),
         ("legalább 1 kép a 4-ből / hét", "p_legalabb_egy_kep", 100, "{:.2f}%"),
         ("legalább 1 keret a 4-ből / hét", "p_legalabb_egy_keret", 100, "{:.3f}%"),
-        (f"átlagos nyeremény szelvényenként / hét (2015-től, {SZELVENY_AR} Ft-os tétre)",
-         "atl_nyeremeny_ft_szelvenyenkent", 1, "{:.0f} Ft"),
     ]:
         ki(f"| {cimke} | **{fmt.format(ert[kulcs] * szorzo)}** | "
            f"{fmt.format(atl('4 független véletlen szelvény', kulcs) * szorzo)} | "
            f"{fmt.format(atl('4 azonos szelvény', kulcs) * szorzo)} |")
     ki("")
-    ki("A szelvényenkénti esély és a várható nyeremény bármilyen számválasztásnál ugyanannyi (a különbségek a "
+    ki("A szelvényenkénti esély bármilyen számválasztásnál ugyanannyi (a különbségek a "
        "véletlen ingadozás részei); a lefedés azt növeli, hogy **legalább az egyik** szelvény nyerjen.")
     nyd = df[df["ft_kep"].notna()]
     def ezres(x: float) -> str:
@@ -191,6 +198,23 @@ def main(csv: Path = ADATOK / "luxor.csv", nyeremenyek: Path = ADATOK / "luxor_n
        f"(átl. {ezres(nyd.db_kep.mean())} nyertes), keret {ezres(nyd.ft_keret.mean())} Ft "
        f"(átl. {ezres(nyd.db_keret.mean())} nyertes), első kép {ezres(nyd.ft_elso_kep.mean())} Ft, "
        f"Luxor {ezres(nyd.ft_luxor.mean())} Ft. A 4 szelvény ára {4 * SZELVENY_AR} Ft / hét.")
+
+    ki("\n## 7. Megtérülés és időzítés\n")
+    mg = mt.megterules(heti)
+    ki(f"Az utolsó 52 héten hetente átlagosan kb. {ezres(mg['szelvények / hét'])} szelvény volt játékban, és egy "
+       f"szelvényre átlagosan **{mg['összesen']:.0f} Ft** nyeremény jutott ({SZELVENY_AR} Ft-os ár mellett "
+       f"{100 * mg['összesen'] / SZELVENY_AR:.0f}%): "
+       + ", ".join(f"{k} {v:.0f} Ft" for k, v in mg.items() if k not in ("összesen", "szelvények / hét")) + ".\n")
+    jp, kov = mt.jackpot_idozites(df, heti)
+    ki("A megtérülés a **jackpot-határtól** függ (utolsó 5 év, mai nyereményszintre vetítve): a határ hetente "
+       "eggyel nő, amíg valaki el nem viszi a jackpotot, és minél magasabb, annál valószínűbb, hogy elviszik.\n")
+    ki("| jackpot-határ | hetek | jackpot-nyerés | esély / hét | jackpot Ft / szelvény | összes nyeremény Ft / szelvény |")
+    ki("|---|---|---|---|---|---|")
+    for h, r in jp.iterrows():
+        ki(f"| {h} | {int(r.hetek)} | {int(r.jackpot_nyeres)} | {r['jackpot_esely_%']:.0f}% | "
+           f"{r.jackpot_ft_szelvenyenkent:.0f} | {r.osszes_ft_szelvenyenkent:.0f} |")
+    ki(f"\nA következő heti határ: **{kov}**. A várható érték minden héten a szelvény ára alatt marad, de ha valaki "
+       "csak alkalmanként játszik, a 42 feletti határú heteken ugyanannyi pénzért érezhetően több jár vissza.")
 
     (KIMENET / "jelentes.md").write_text("\n".join(md) + "\n", encoding="utf-8")
     abra(df, becsles, tk["p"], KIMENET / "abra.png")

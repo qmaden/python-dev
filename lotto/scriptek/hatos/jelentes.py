@@ -17,6 +17,7 @@ import pandas as pd
 
 from ..kozos import ADATOK, EREDMENYEK
 from . import elemzes as e
+from . import mintazat as mm
 from . import szelvenyek as s
 from .tisztitas import beolvas, tisztitasi_jelentes
 
@@ -111,7 +112,7 @@ def main(csv: Path = ADATOK / "hatos.csv") -> None:
     ki("\n(4 stratégia tesztelése mellett egy p ≈ 0,02 még bőven a véletlen ingadozás része; "
        "a „véletlen” sor mutatja, mekkora a zaj.)\n")
 
-    ki("## 4. Játékos-népszerűség (nyertesek számából)\n")
+    ki("## 4. Játékos-népszerűség számonként (nyertesek számából)\n")
     nep = e.nepszeruseg_modell(df, "3")
     nep4 = e.nepszeruseg_modell(df, "4")
     nep5 = e.nepszeruseg_modell(df, "5")
@@ -128,27 +129,117 @@ def main(csv: Path = ADATOK / "hatos.csv") -> None:
     ki(f"- Legnépszerűbb: {', '.join(f'{i} ({100 * x:+.0f}%)' for i, x in top.tail(8)[::-1].items())}")
     ki(f"- 1–31 átlag: {100 * nep.loc[1:31].mean():+.1f}%, 32–45 átlag: {100 * nep.loc[32:45].mean():+.1f}%\n")
 
-    ki("## 5. Ajánlott 4 szelvény\n")
-    sz = s.szelvenyek_osszeallitasa(df, nep)
-    ki("| # | Számok | Népszerűségi pontszám | Becsült 3-as nyeremény-szorzó |")
+    ki("## 5. Ellenőrzés és bővített modell\n")
+    regi_sz = s.szelvenyek_osszeallitasa(df, nep)
+    val = {m: mm.gordulo_validacio(df, m) for m in mm.SZINTEK}
+    val0 = {m: mm.gordulo_validacio(df, m, mintazattal=False, felezesi_ido=None) for m in mm.SZINTEK}
+    modellek = {m: mm.illeszt(df, m) for m in mm.SZINTEK}
+    meredeksegek = {m: val[m]["meredekseg"] for m in mm.SZINTEK}
+    szorzok = mm.huzas_szorzok(modellek, meredeksegek)
+    sulyok = mm.szint_sulyok(df)
+    stab = mm.idobeli_stabilitas(df)
+
+    ki("**a) Mintázat-hatás.** A nyertesek száma nemcsak attól függ, *mely* számokat húzzák ki, hanem attól is, "
+       "hogyan helyezkednek el egymáshoz képest. Hatás a nyertesek számára (± standard hiba):\n")
+    ki("| mintázat a kihúzott számok között | 3-as | 4-es | 5-ös |")
     ki("|---|---|---|---|")
-    for i, t_ in enumerate(sz, 1):
-        pont = sum(nep[x] for x in t_)
-        ki(f"| {i} | {' – '.join(map(str, t_))} | {pont:+.3f} | ×{np.exp(v['meredekseg'] * pont):.2f} |")
+    for i, leiras in enumerate(mm.JELLEMZOK.values()):
+        ki(f"| {leiras} | " + " | ".join(
+            f"{100 * (np.exp(modellek[m].minta[i]) - 1):+.1f}% (±{100 * modellek[m].minta_se[i]:.1f})"
+            for m in mm.SZINTEK) + " |")
+    ki("\nA játékosok tehát **kerülik a szomszédos számokat**: ha a húzásban van ilyen pár, érezhetően kevesebb "
+       "a nyertes. (A korábbi szelvény-szűrő épp fordítva, a szomszédos párokat tiltotta.)\n")
+    ki("**b) Mintán kívüli ellenőrzés** – minden évre csak a korábbi évekből becsülve (2008-tól, "
+       f"{val[3]['huzasok']} húzás): a nyertesszám ingadozásának mekkora részét jelzi előre a modell.\n")
+    ki("| | 3-as | 4-es | 5-ös |")
+    ki("|---|---|---|---|")
+    ki("| csak számonkénti népszerűség (eredeti modell) | " + " | ".join(f"{100 * val0[m]['r2']:.0f}%" for m in mm.SZINTEK) + " |")
+    ki("| + mintázat, + friss adatok nagyobb súlya | " + " | ".join(f"**{100 * val[m]['r2']:.0f}%**" for m in mm.SZINTEK) + " |")
+    ki("| kalibráció (1 = pontos; <1 = a modell túloz) | " + " | ".join(f"{val[m]['meredekseg']:.2f}" for m in mm.SZINTEK) + " |")
+    ki("\nA szelvények szorzóit a kalibrációval visszahúzva számoljuk.\n")
+    ki(f"**c) Időbeli stabilitás.** A 2012 előtti és utáni becslés korrelációja r = {stab['r']:.2f}: a sorrend "
+       "nagyjából állandó, de lassan változik (legtöbbet nőtt: "
+       + ", ".join(f"{i} ({100 * x:+.0f}%)" for i, x in stab["valtozas"].tail(3)[::-1].items())
+       + "; csökkent: " + ", ".join(f"{i} ({100 * x:+.0f}%)" for i, x in stab["valtozas"].head(3).items())
+       + "). Ezért a friss húzások nagyobb súlyt kapnak (felezési idő 8 év).\n")
+    ki("**d) A korábbi „nyeremény-szorzó” túlbecslés volt.** A 4. pont pontszáma azt mutatja, mi történik, ha a "
+       "szelvény *mind a 6* számát kihúzzák. 3 találatnál viszont a húzás másik 3 száma nem a miénk, így a "
+       "tényleges szorzó kisebb. A helyes érték: átlag mindazon húzásokra, amelyek a szelvényt pontosan 3 "
+       "(4, 5) számban találják el. A korábbi 4 szelvényre így:\n")
+
+    def tabla(szelvenyek, cimkek=None):
+        ki("| # | Számok | 3-as | 4-es | 5-ös | várható 3–5 találatos nyeremény / szelvény |")
+        ki("|---|---|---|---|---|---|")
+        for i, t_ in enumerate(szelvenyek, 1):
+            x = mm.szelveny_szorzo(t_, szorzok)
+            ki(f"| {cimkek[i - 1] if cimkek else i} | {' – '.join(map(str, t_))} | ×{x[3]:.2f} | ×{x[4]:.2f} | "
+               f"×{x[5]:.2f} | {sum(sulyok[m] * x[m] for m in mm.SZINTEK):.0f} Ft |")
+
+    tabla(regi_sz)
+    alap = sum(sulyok[m] for m in mm.SZINTEK)
+    ki(f"\n(Véletlen számokkal: ×1,00 és {alap:.0f} Ft. A korábban közölt ×1,23–1,26 helyett a 3-as szorzó "
+       "valójában kb. ×1,1.)\n")
+
+    ki("## 6. Ajánlott 4 szelvény\n")
+    sz = s.optimalis_szelvenyek(df, modellek, meredeksegek, szorzok, sulyok)
+    ki("4 egymást nem fedő szelvény, amelyek együttes várható 3–5 találatos nyereménye a legnagyobb "
+       "(megkötés: nincs 3 egymást követő szám, legfeljebb 2 szomszédos pár, nincs 4 hosszú számtani sor, "
+       "nem korábbi nyerőszámsor – ezeken túl a modellnek nincs tapasztalata).\n")
+    tabla(sz)
     pelda = (3, 7, 9, 13, 17, 21)
-    pp = sum(nep[x] for x in pelda)
-    ki(f"| – | összehasonlítás: „szerencseszámok” {' – '.join(map(str, pelda))} | {pp:+.3f} | "
-       f"×{np.exp(v['meredekseg'] * pp):.2f} |\n")
+    ki("")
+    tabla([pelda], ["„szerencseszámok”"])
+    uj_ossz = sum(mm.szelveny_ertek(t_, szorzok, sulyok) for t_ in sz) / len(sz)
+    regi_ossz = sum(mm.szelveny_ertek(t_, szorzok, sulyok) for t_ in regi_sz) / len(regi_sz)
+    ki(f"\nSzelvényenként átlagosan {uj_ossz:.0f} Ft várható 3–5 találatos nyeremény (korábbi szelvények: "
+       f"{regi_ossz:.0f} Ft, véletlen számok: {alap:.0f} Ft). Az 5-ös szorzók a legbizonytalanabbak (kevés adat).\n")
 
     es = s.pontos_eselyek(sz)
     atf = s.atfedo_pelda_eselye()
-    ki("Pontos esélyek (mind a 8 145 060 lehetséges húzás végigszámolásával):\n")
+    ki("Pontos esélyek (mind a 8 145 060 lehetséges húzás végigszámolásával) – ezek a számválasztástól nem, "
+       "csak attól függnek, hogy a 4 szelvény nem fedi egymást:\n")
     ki(f"- Legalább egy szelvényen 3+ találat: **{100 * es['legalabb_egy_3+']:.2f}%** "
        f"(4 független véletlen szelvény: {100 * es['fuggetlen_4_veletlen_3+']:.2f}%, "
        f"4 erősen átfedő szelvény: {100 * atf:.2f}%)")
     ki(f"- Legalább egy 4+ találat: {100 * es['legalabb_egy_4+']:.3f}%")
     ki(f"- Legalább egy 5+ találat: {100 * es['legalabb_egy_5+']:.4f}% (≈ 1 : {1 / es['legalabb_egy_5+']:,.0f})")
-    ki(f"- Telitalálat: 1 : {1 / es['telitalalat']:,.0f}")
+    ki(f"- Telitalálat: 1 : {1 / es['telitalalat']:,.0f}\n")
+
+    ki("## 7. Próba a múlton: mi lett volna 2019-től?\n")
+    hatar = 2019
+    tan = df[df["ev"] < hatar]
+    tv = {m: mm.gordulo_validacio(tan, m)["meredekseg"] for m in mm.SZINTEK}
+    tm = {m: mm.illeszt(tan, m) for m in mm.SZINTEK}
+    t_uj = s.optimalis_szelvenyek(tan, tm, tv, mm.huzas_szorzok(tm, tv), mm.szint_sulyok(tan))
+    t_regi = s.szelvenyek_osszeallitasa(tan, e.nepszeruseg_modell(tan, "3"))
+    rng = np.random.default_rng(5)
+    t_vel = [tuple(int(x) for x in r) for r in e.veletlen_huzasok(200, rng)]
+    ki(f"A szelvényeket csak a {hatar} előtti adatokból állítjuk össze, majd megnézzük a {hatar}–{df.ev.max()} közötti "
+       "húzásokat: amikor a szelvényen pontosan 3 találat volt, mekkora volt a tényleges nyeremény az adott "
+       "negyedév átlagához képest.\n")
+    ki("| szelvények | húzások | 3 találatos esetek | tényleges 3-as nyeremény az átlaghoz képest |")
+    ki("|---|---|---|---|")
+    for nev, keszlet in [("bővített módszer (4 szelvény)", t_uj), ("eredeti módszer (4 szelvény)", t_regi),
+                         ("„szerencseszámok” 3-7-9-13-17-21", [pelda]), ("200 véletlen szelvény", t_vel)]:
+        r = mm.szelveny_visszateszt(df, keszlet, hatar)
+        ki(f"| {nev} | {r['huzasok']} | {r[3]['esetek']} | ×{r[3]['szorzo']:.2f} (±{r[3]['se']:.2f}) |")
+    ki("\nA kevéssé népszerű számokkal tehát a valóságban is kb. 10%-kal nagyobb volt a 3-as nyeremény, a "
+       "népszerű számokkal jóval kisebb. A két módszer közti különbség a 3-asoknál kicsi, és ennyi esetből nem "
+       "mérhető; a bővített módszer előnye főleg a 4-es és 5-ös találatnál várható, amiből túl kevés van a "
+       "közvetlen méréshez. A találatok *száma* a számválasztástól nem függ.\n")
+
+    ki("## 8. Megtérülés és időzítés\n")
+    ido, sorozat = mm.fonyeremeny_idozites(df)
+    ki(f"Az utolsó {104} húzáson egy szelvényre átlagosan {sum(sulyok.values()):.0f} Ft nyeremény jutott: "
+       f"3-as {sulyok[3]:.0f} Ft, 4-es {sulyok[4]:.0f} Ft, 5-ös {sulyok[5]:.0f} Ft, telitalálat {sulyok[6]:.0f} Ft "
+       "(ez utóbbi szinte mind ritka, nagy nyeremény). A főnyeremény halmozódik, ezért a megtérülés attól függ, "
+       "mióta nincs telitalálat (utolsó 10 év):\n")
+    ki("| húzások telitalálat nélkül | húzások | telitalálatos húzás | főnyeremény Ft / szelvény |")
+    ki("|---|---|---|---|")
+    for h, r in ido.iterrows():
+        ki(f"| {h} | {int(r.huzasok)} | {int(r.telitalalat)} | {r.ft_szelvenyenkent:.0f} |")
+    ki(f"\nJelenleg **{sorozat}** húzás óta nincs telitalálat. A várható érték így is a szelvény ára alatt marad; "
+       "a táblázat csak azt mutatja, hogy a hosszan halmozódó főnyereménynél ugyanannyi pénzért több jár vissza.")
 
     (KIMENET / "jelentes.md").write_text("\n".join(md) + "\n", encoding="utf-8")
     abra(df, nep, {x for t_ in sz for x in t_}, KIMENET / "abra.png")

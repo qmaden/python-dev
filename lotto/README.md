@@ -24,8 +24,8 @@ lotto/
 ├── scriptek/
 │   ├── letoltes.py            CSV-k és Luxor nyereménytáblák letöltése
 │   ├── kozos.py               útvonalak, statisztikai és ábra-segédfüggvények
-│   ├── hatos/                 tisztitas.py · elemzes.py · szelvenyek.py · jelentes.py
-│   └── luxor/                 tisztitas.py · elemzes.py · szelvenyek.py · jelentes.py
+│   ├── hatos/                 tisztitas.py · elemzes.py · mintazat.py · szelvenyek.py · jelentes.py
+│   └── luxor/                 tisztitas.py · elemzes.py · megterules.py · szelvenyek.py · jelentes.py
 ├── eredmenyek/
 │   ├── hatos/                 hatos_tiszta.csv · jelentes.md · abra.png
 │   └── luxor/                 luxor_tiszta.csv · jelentes.md · abra.png
@@ -55,19 +55,41 @@ húzás is van (az (év, hét) már nem egyedi), egy hibás érték (1998/3: 0 t
   negyedben 16%-kal több, a legnépszerűbbben 13%-kal kevesebb volt a nyeremény.
 - Vagyis: **az esélyen nem lehet javítani, a nyeremény nagyságán igen.**
 
-**4 szelvény** – a 24 legkevésbé népszerű szám, egymást nem fedve, mintázat-szűrővel
-(nincs 3 egymást követő szám, számtani sor, korábbi nyerőszámsor stb.):
+**Utólagos ellenőrzés (2026. november)** – részletek a jelentés 5–8. pontjában:
+- A korábbi számok reprodukálhatók, a véletlenszerűségi tesztek és a 9,50%-os lefedési esély helyesek.
+- **Hiba volt a „nyeremény-szorzóban”:** a közölt ×1,23–1,26 azt az esetet írta le, amikor a szelvény
+  mind a 6 számát kihúzzák. 3 találatnál a húzás másik 3 száma nem a miénk, így a valódi szorzó kb. ×1,1.
+  Most minden szelvényre pontosan számoljuk (átlag az összes olyan húzásra, amelyik pontosan 3/4/5
+  számát találja el).
+- **Új: mintázat-hatás.** A játékosok kerülik a szomszédos számokat: ha a húzásban van szomszédos pár,
+  6%-kal kevesebb a 3-as, 15%-kal a 4-es, 24%-kal az 5-ös nyertes (kisebb hatás a 2-vel és 7-tel eltérő
+  pároknál is). A korábbi szűrő épp tiltotta a szomszédos párokat. A bővített modell mintán kívül a
+  nyertesszám ingadozásának 63 / 68 / 51%-át jelzi előre (3-as / 4-es / 5-ös) a korábbi 53 / 45 / 27% helyett.
+- **Új: időbeli súlyozás.** A népszerűség lassan változik (2012 előtt/után r = 0,93), ezért a friss
+  húzások nagyobb súlyt kapnak.
+- **Próba a múlton:** csak 2019 előtti adatból választott szelvényekkel 2019–2026 között a tényleges
+  3-as nyeremény ×1,12 volt az átlaghoz képest (36 eset), a „szerencseszámokkal” ×0,83.
 
-| # | Számok | Becsült 3-as nyeremény-szorzó |
-|---|---|---|
-| 1 | **15 – 16 – 28 – 38 – 43 – 45** | ×1,26 |
-| 2 | **2 – 8 – 29 – 30 – 35 – 37** | ×1,25 |
-| 3 | **1 – 20 – 39 – 40 – 42 – 44** | ×1,24 |
-| 4 | **14 – 22 – 32 – 34 – 36 – 41** | ×1,23 |
-| – | összehasonlítás: 3 – 7 – 9 – 13 – 17 – 21 | ×0,66 |
+**4 szelvény** – egymást nem fedik, együttes várható 3–5 találatos nyereményük a legnagyobb
+(megkötés: nincs 3 egymást követő szám, legfeljebb 2 szomszédos pár, nincs számtani sor, nem korábbi nyerőszámsor):
+
+| # | Számok | 3-as szorzó | 4-es | 5-ös | várható 3–5 találatos nyeremény |
+|---|---|---|---|---|---|
+| 1 | **1 – 28 – 29 – 35 – 36 – 43** | ×1,19 | ×1,57 | ×2,50 | 135 Ft |
+| 2 | **14 – 15 – 20 – 22 – 39 – 40** | ×1,14 | ×1,38 | ×1,68 | 119 Ft |
+| 3 | **2 – 30 – 31 – 34 – 37 – 38** | ×1,08 | ×1,30 | ×1,87 | 116 Ft |
+| 4 | **8 – 16 – 41 – 42 – 44 – 45** | ×1,03 | ×1,11 | ×1,43 | 104 Ft |
+| – | véletlen számok | ×1,00 | ×1,00 | ×1,00 | 96 Ft |
+| – | korábbi 4 szelvény (átlag) | ×1,10 | ×1,24 | ×1,45 | 111 Ft |
+| – | 3 – 7 – 9 – 13 – 17 – 21 | ×0,82 | ×0,62 | ×0,42 | 71 Ft |
 
 Legalább egy 3+ találat esélye a 4 szelvénnyel **9,50%** (4 független véletlen
-szelvény: 9,20%; 4 erősen átfedő: 5,25%), telitalálat 1 : 2 036 265.
+szelvény: 9,20%; 4 erősen átfedő: 5,25%), telitalálat 1 : 2 036 265. A 4-es és főleg az 5-ös szorzók
+modellbecslések, közvetlenül nem mérhetők vissza (túl ritka esemény).
+
+Az utolsó 104 húzáson egy szelvényre átlagosan kb. 186 Ft nyeremény jutott (ennek fele a ritka
+telitalálat). A főnyeremény-rész a halmozódással nő: 0–4 telitalálat nélküli húzás után 27 Ft,
+10–19 után 143 Ft szelvényenként.
 
 ---
 
@@ -101,6 +123,17 @@ hét egyezik; jackpot-nyerésnél az oldal a határ helyett a tényleges golyós
 - **Ami számít: a lefedés.** A 4 szelvény együtt mind a 75 számot lefedi (oszloponként
   16 helyre 15 szám).
 
+**Utólagos ellenőrzés (2026. november)** – a jelentés 2. és 7. pontja:
+- **A tábla-képlet független próbája:** a kép-nyertesekből visszaszámolt szelvényszámmal a képlet
+  68 023 keret-nyertest jósol 2015 óta, a tényleges 67 237 (99%); az első kép 8 306 vs. 8 355.
+- **Javítás:** a korábbi „kb. 60 Ft nyeremény szelvényenként” alulbecslés volt, mert a ritka nyeremények
+  (luxor, jackpot, első kép/keret) egyetlen szelvény múltjából nem mérhetők. Az összes kifizetésből
+  számolva az utolsó 52 héten **144 Ft** jutott egy szelvényre (kép 73, luxor 34, jackpot 16, keret 12 Ft).
+- **Új: időzítés.** A megtérülés a jackpot-határtól függ: 32–38-as határnál kb. 129 Ft, 42–43-nál 169 Ft,
+  44 felett 254 Ft jut egy szelvényre (ekkor a jackpotot a hetek 55%-ában elvitték). Az ár alatt marad
+  mindig, de alkalmi játékhoz a magas határú hetek a jobbak.
+- A 4 szelvény és a lefedési számok változatlanok.
+
 **4 szelvény:**
 
 | # | L (1–15) | U (16–30) | X (31–45) | O (46–60) | R (61–75) |
@@ -110,7 +143,7 @@ hét egyezik; jackpot-nyerésnél az oldal a határ helyett a tényleges golyós
 | 3 | 8 11 14 15 | 17 20 23 29 | 37 41 43 45 | 46 49 50 58 | 62 63 66 73 |
 | 4 | 2 4 7 10 | 16 22 26 30 | 32 40 42 45 | 48 54 56 60 | 65 69 72 74 |
 
-Ha ezt minden héten megjátszottuk volna (1309 hét, a gép véletlen elhelyezésére pontosan átlagolva):
+Ha ezt minden héten megjátszottuk volna (1310 hét, a gép véletlen elhelyezésére pontosan átlagolva):
 
 | | ajánlott | 4 független véletlen | 4 azonos |
 |---|---|---|---|
@@ -123,7 +156,6 @@ Ha ezt minden héten megjátszottuk volna (1309 hét, a gép véletlen elhelyez�
 ## Fontos
 
 - Egyik módszer sem növeli a főnyeremény esélyét; a lottó várható értéke negatív
-  (a befizetések kb. fele megy vissza nyereményként; a Luxor 300 Ft-os szelvényére
-  2015 óta átlagosan kb. 60 Ft nyeremény jutott volna hetente, bármilyen számokkal). Csak annyit
+  (a befizetések kb. fele megy vissza nyereményként, bármilyen számokkal). Csak annyit
   érdemes rá költeni, amennyit szórakozásra szánnál.
 - Ha mindenki ugyanezt a módszert használná, a Hatoslottós előny eltűnne. :)

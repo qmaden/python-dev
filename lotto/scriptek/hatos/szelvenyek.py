@@ -148,6 +148,81 @@ def szelvenyek_osszeallitasa(
 
 
 # ---------------------------------------------------------------------------
+# Bővített módszer: a várható nyeremény közvetlen maximalizálása
+# ---------------------------------------------------------------------------
+def megengedett(sz: tuple[int, ...], multbeli: set[tuple[int, ...]]) -> bool:
+    """Csak olyan szelvényt engedünk meg, amilyenre a modellnek van tapasztalata: a
+    szomszédos számpár az adatok szerint előny, de a hosszabb sorozatok (1-2-3…) és a
+    szabályos alakzatok ismerten népszerűek, és a húzások között alig fordulnak elő."""
+    s = sorted(sz)
+    kul = np.diff(s)
+    if any(kul[i] == 1 and kul[i + 1] == 1 for i in range(len(kul) - 1)):
+        return False  # 3 egymást követő szám
+    if (kul == 1).sum() > 2:
+        return False  # legfeljebb 2 szomszédos pár
+    if _leghosszabb_szamtani_sor(tuple(s)) >= 4:
+        return False
+    return tuple(s) not in multbeli
+
+
+def optimalis_szelvenyek(df: pd.DataFrame, modellek: dict, meredeksegek: dict[int, float],
+                         szorzok: dict[int, np.ndarray], sulyok: dict[int, float],
+                         n_szelveny: int = 4, jeloltek: int = 40, max_lepes: int = 200) -> list[tuple[int, ...]]:
+    """4 egymást nem fedő szelvény, amelyek együttes várható 3–5 találatos nyereménye a
+    legnagyobb. Determinisztikus helyi keresés: a lehetséges cseréket (szám kicserélése
+    egy kimaradóra, vagy két szelvény közti csere) egy gyors közelítéssel rangsoroljuk,
+    a legígéretesebbeket pontosan kiértékeljük, és a legjobbat hajtjuk végre."""
+    from . import mintazat as mm
+
+    multbeli = {tuple(r) for r in df[SZAM_OSZLOPOK].to_numpy()}
+
+    def kozelites(tomb: np.ndarray) -> np.ndarray:
+        return sum(sulyok[m] * np.exp(-meredeksegek[m] * mm.kozelito_pontszam(modellek[m], tomb)) for m in modellek)
+
+    gyorsitotar: dict[tuple[int, ...], float] = {}
+
+    def ertek(t: tuple[int, ...]) -> float:
+        if t not in gyorsitotar:
+            gyorsitotar[t] = mm.szelveny_ertek(t, szorzok, sulyok)
+        return gyorsitotar[t]
+
+    # kiindulás: a 3-as modell szerint legkevésbé népszerű 24 szám kígyó-kiosztása
+    sorrend = [int(x) + 1 for x in np.argsort(modellek[3].szam, kind="stable")]
+    akt = [tuple(sorted(s)) for s in _kigyo_kiosztas(sorrend[: n_szelveny * K], n_szelveny)]
+    for _ in range(max_lepes):
+        hasznalt = {x for t in akt for x in t}
+        szabad = [x for x in range(1, N_SZAM + 1) if x not in hasznalt]
+        lepesek = []  # (érintett szelvények indexei, új szelvények)
+        for a, t in enumerate(akt):
+            for x in t:
+                for y in szabad:
+                    lepesek.append(((a,), (tuple(sorted(set(t) - {x} | {y})),)))
+                for b in range(a + 1, len(akt)):
+                    for y in akt[b]:
+                        lepesek.append(((a, b), (tuple(sorted(set(t) - {x} | {y})),
+                                                 tuple(sorted(set(akt[b]) - {y} | {x})))))
+        lepesek = [l for l in lepesek if all(megengedett(t, multbeli) for t in l[1])]
+        regi_koz = kozelites(np.array(akt))
+        nyereseg = np.array([sum(kozelites(np.array(uj))) - sum(regi_koz[list(idx)]) for idx, uj in lepesek])
+        legjobb, legjobb_javulas = None, 1e-6
+        ervenytelen = sum(0 if megengedett(t, multbeli) else 1 for t in akt)
+        for i in np.argsort(-nyereseg, kind="stable")[:jeloltek]:
+            idx, uj = lepesek[i]
+            javulas = sum(ertek(t) for t in uj) - sum(ertek(akt[j]) for j in idx)
+            if ervenytelen:  # a kiindulás sérthet szabályt: előbb azt javítjuk
+                javulas += 1e3 * sum(not megengedett(akt[j], multbeli) for j in idx)
+            if javulas > legjobb_javulas:
+                legjobb, legjobb_javulas = (idx, uj), javulas
+        if legjobb is None:
+            break
+        for j, t in zip(*legjobb):
+            akt[j] = t
+    if not all(megengedett(t, multbeli) for t in akt):
+        raise RuntimeError("Nem található érvényes szelvénykészlet")
+    return sorted(akt, key=lambda t: -ertek(t))
+
+
+# ---------------------------------------------------------------------------
 # Pontos valószínűségek (mind a 8 145 060 lehetséges húzás végigszámolásával)
 # ---------------------------------------------------------------------------
 def pontos_eselyek(szelvenyek: list[tuple[int, ...]]) -> dict:

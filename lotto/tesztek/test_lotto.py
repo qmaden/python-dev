@@ -4,11 +4,13 @@ import numpy as np
 import pytest
 
 from scriptek.hatos import elemzes as he
+from scriptek.hatos import mintazat as hm
 from scriptek.hatos import szelvenyek as hs
 from scriptek.hatos.tisztitas import _ft_to_int
 from scriptek.hatos.tisztitas import beolvas as hatos_beolvas
 from scriptek.kozos import ADATOK
 from scriptek.luxor import elemzes as le
+from scriptek.luxor import megterules as lm
 from scriptek.luxor import szelvenyek as ls
 from scriptek.luxor.tisztitas import beolvas as luxor_beolvas
 
@@ -69,3 +71,38 @@ def test_luxor_szelvenyek():
         a = np.array(t)
         assert len(set(t)) == 20 and np.bincount((a - 1) // 15, minlength=5).tolist() == [4] * 5
     assert len({x for t in sz for x in t}) == 75  # együtt lefedik mind a 75 számot
+
+
+def test_hatos_bovitett_modell(hatos):
+    # a kombinációk sorszámozása egyértelmű
+    osszes = he.osszes_kombinacio()
+    rang = hm._rang(osszes[::9973])
+    assert len(set(rang.tolist())) == len(rang) and rang.max() < len(osszes)
+    assert hm._rang(np.array([[1, 2, 3, 4, 5, 6]]))[0] == 0
+    assert hm._rang(np.array([[40, 41, 42, 43, 44, 45]]))[0] == len(osszes) - 1
+
+    modellek = {m: hm.illeszt(hatos, m) for m in hm.SZINTEK}
+    assert modellek[3].minta[0] < -0.03  # szomszédos számpár -> kevesebb nyertes
+    meredekseg = {m: 0.8 for m in hm.SZINTEK}
+    szorzok = hm.huzas_szorzok(modellek, meredekseg)
+    assert all(abs(f.mean() - 1) < 1e-3 for f in szorzok.values())
+    # a pontos szorzó megegyezik a közvetlen (lassú) számolással
+    t = (1, 28, 29, 35, 36, 43)
+    kozvetlen = np.exp(-0.8 * modellek[5].pontszam(osszes))
+    kozvetlen /= kozvetlen.mean()
+    tag = np.zeros(46, dtype=np.int8)
+    tag[list(t)] = 1
+    assert hm.szelveny_szorzo(t, szorzok)[5] == pytest.approx(kozvetlen[tag[osszes].sum(1) == 5].mean(), rel=1e-4)
+
+    sulyok = hm.szint_sulyok(hatos)
+    sz = hs.optimalis_szelvenyek(hatos, modellek, meredekseg, szorzok, sulyok)
+    multbeli = {tuple(r) for r in hatos[["sz1", "sz2", "sz3", "sz4", "sz5", "sz6"]].to_numpy()}
+    assert len(sz) == 4 and len({x for t in sz for x in t}) == 24
+    assert all(hs.megengedett(t, multbeli) for t in sz)
+    assert all(hm.szelveny_ertek(t, szorzok, sulyok) > sum(sulyok[m] for m in hm.SZINTEK) for t in sz)
+
+
+def test_luxor_szerkezet_a_nyertesszamokbol(luxor):
+    e = lm.szerkezet_ellenorzes(lm.heti_tabla(luxor)).set_index("kategória")["arány"]
+    assert e["keret"] == pytest.approx(1, abs=0.05) and e["első kép"] == pytest.approx(1, abs=0.05)
+    assert e["luxor"] == pytest.approx(1, abs=0.12)
